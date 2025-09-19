@@ -1,59 +1,39 @@
-import json
+# app/services/sensors_mqtt.py
+import asyncio
+import random
 import threading
 from typing import Dict
-import paho.mqtt.client as mqtt
-from app.config import MQTT_BROKER, MQTT_PORT, MQTT_TOPIC
 
-# shared sensor state (in-memory)
-SENSOR_STATE: Dict[str, float] = {}
-
-_client = None
+# Shared in-memory state
+_sensor_state: Dict[str, float] = {"vibration": 0.0}
 
 
-def _on_connect(client, userdata, flags, rc):
-    print("MQTT connected, subscribing to:", MQTT_TOPIC)
-    client.subscribe(MQTT_TOPIC)
+def get_latest_sensor_state() -> Dict[str, float]:
+    """Return the latest sensor state."""
+    return dict(_sensor_state)
 
 
-def _on_message(client, userdata, msg):
-    try:
-        payload = msg.payload.decode()
-        data = json.loads(payload)
-        # expected keys: displacement, vibration, pore_pressure, timestamp etc.
-        SENSOR_STATE.update(data)
-        print("Received sensor data:", data)  # 👈 Added logging for debugging
-    except Exception as e:
-        print("MQTT message parse error:", e)
+async def simulate_vibration():
+    """Continuously generate simulated vibration values every 5 seconds."""
+    global _sensor_state
+    while True:
+        # Simulated vibration between 0.0 - 1.0 (adjust range if needed)
+        _sensor_state["vibration"] = round(random.uniform(0.0, 1.0), 2)
+        print(f"[SIM] Vibration updated: {_sensor_state['vibration']}")
+        await asyncio.sleep(5)
 
 
 def start_mqtt_client():
-    global _client
-    if _client is not None:
-        return _client
-    client = mqtt.Client()
-    client.on_connect = _on_connect
-    client.on_message = _on_message
-    client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    # run loop in background thread
-    t = threading.Thread(target=client.loop_forever, daemon=True)
-    t.start()
-    _client = client
-    return client
+    """
+    Instead of connecting to a real MQTT broker,
+    this starts a background thread running the vibration simulator.
+    """
+    loop = asyncio.new_event_loop()
 
+    def run():
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(simulate_vibration())
 
-def get_latest_sensor_state():
-    return dict(SENSOR_STATE)
-
-
-if __name__ == "__main__":
-    print("Starting MQTT Subscriber...")
-    # Ensure client starts when running directly
-    start_mqtt_client()
-
-    import time
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("Subscriber stopped by user.")
-
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    print("✅ Vibration simulation started...")
