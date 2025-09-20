@@ -12,6 +12,7 @@ from app.services.sensors_mqtt import start_mqtt_client, get_latest_sensor_state
 from app.models.predictor import predict as risk_score
 from app.services.mine_services import get_mine_data
 from app.services.predefined_slopes import get_slope   # ✅ NEW IMPORT
+from fastapi.middleware.cors import CORSMiddleware
 
 
 # ------------ APP ------------ #
@@ -42,6 +43,15 @@ def custom_openapi():
         )
 
 app.openapi = custom_openapi
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or list of domains ["https://your-frontend.com"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ------------ ROUTES ------------ #
